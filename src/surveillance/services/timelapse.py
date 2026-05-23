@@ -150,13 +150,25 @@ async def download_recording(
     recording_id: int,
     output_path: Path,
 ) -> Path:
-    """Download a time lapse recording to disk."""
+    """Download a time lapse recording to disk.
+
+    Raises ValueError if the server returned an empty body or an HTML
+    login page (which happens when the session expires) instead of a
+    recording.
+    """
     data = await api.download(
         api="SYNO.SurveillanceStation.Recording",
         method="Download",
         version=5,
         extra_params={"id": str(recording_id), "recEvtType": "3"},
     )
+    if not data:
+        raise ValueError(f"Recording {recording_id}: empty response (session may have expired)")
+    head = data[:16].lstrip().lower()
+    if head.startswith((b"<!doctype", b"<html")):
+        raise ValueError(
+            f"Recording {recording_id}: server returned HTML (session expired or access denied)"
+        )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_bytes(data)
     return output_path
