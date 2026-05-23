@@ -239,12 +239,17 @@ class MpvGLArea(Gtk.GLArea):
             self._mpv["untimed"] = True
             self._mpv["container-fps-override"] = 25
         else:
+            # Explicit mpv defaults so a widget that previously played a
+            # low-latency stream does not inherit probesize=32 and
+            # container-fps-override=25 here.
             self._mpv["cache"] = "auto"
             self._mpv["demuxer-max-bytes"] = "150MiB"
             self._mpv["demuxer-readahead-secs"] = 1
             self._mpv["demuxer-lavf-analyzeduration"] = 0
+            self._mpv["demuxer-lavf-probesize"] = 5000000
             self._mpv["correct-pts"] = True
             self._mpv["untimed"] = False
+            self._mpv["container-fps-override"] = 0
 
     def play(self, url: str, *, low_latency: bool = False) -> None:
         """Start playing a stream URL.
