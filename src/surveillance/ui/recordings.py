@@ -32,6 +32,7 @@ import contextlib
 import logging
 import re
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import gi
@@ -42,6 +43,7 @@ from gi.repository import Gdk, GdkPixbuf, Gtk  # type: ignore[import-untyped]
 
 from surveillance.api.models import Camera, Recording, decode_detection_labels
 from surveillance.services.recording import (
+    download_recording,
     fetch_recording_thumbnail,
     list_recordings,
 )
@@ -477,6 +479,17 @@ class RecordingsView(Gtk.Box):
 
         return box, picture
 
+    def _show_error_dialog(self, title: str, message: str) -> None:
+        """Show a non-blocking error alert to the user."""
+        try:
+            dialog = Gtk.AlertDialog()
+            dialog.set_message(title)
+            dialog.set_detail(message)
+            dialog.set_buttons(["OK"])
+            dialog.show(self.window)
+        except Exception:
+            log.exception("Could not show error dialog: %s — %s", title, message)
+
     def _on_play(self, btn: Gtk.Button, rec: Recording) -> None:
         log.debug("PLAY CLICKED: rec_id=%s", rec.id)
         self._play_recording(rec)
@@ -489,7 +502,7 @@ class RecordingsView(Gtk.Box):
         dialog.present()
 
     def _on_download(self, btn: Gtk.Button, rec: Recording) -> None:
-        """Download recording to disk."""
+        """Download recording to disk with progress feedback and error reporting."""
         dialog = Gtk.FileDialog()
         start = datetime.fromtimestamp(rec.start_time)
         safe_name = re.sub(r'[/\\<>:"|?*]', "_", rec.camera_name)
@@ -498,24 +511,56 @@ class RecordingsView(Gtk.Box):
         def _on_save(d: Gtk.FileDialog, result: object) -> None:
             try:
                 gfile = d.save_finish(result)
-                if gfile:
-                    path = gfile.get_path()
-                    if path:
-                        from pathlib import Path
-
-                        from surveillance.services.recording import (
-                            download_recording,
-                        )
-
-                        if self.app.api is None:
-                            return
-                        run_async(
-                            download_recording(self.app.api, rec.id, Path(path)),
-                            callback=lambda p: log.info("Downloaded to %s", p),
-                            error_callback=lambda e: log.error("Download failed: %s", e),
-                        )
             except Exception:
-                log.exception("Save dialog error")
+                # User cancelled or dialog error — nothing to do
+                return
+
+            if not gfile:
+                return
+            path = gfile.get_path()
+            if not path:
+                return
+
+            if self.app.api is None:
+                self._show_error_dialog(
+                    "Not Connected",
+                    "Cannot download: no active API session.",
+                )
+                return
+
+            # Visual feedback: disable button and show spinner icon while downloading
+            btn.set_sensitive(False)
+            btn.set_icon_name("content-loading-symbolic")
+            btn.set_tooltip_text("Downloading…")
+
+            def _on_success(p: Path) -> None:
+                btn.set_sensitive(True)
+                btn.set_icon_name("document-save-symbolic")
+                btn.set_tooltip_text("Download")
+                log.info("Recording %d downloaded to %s", rec.id, p)
+
+            def _on_error(exc: Exception) -> None:
+                btn.set_sensitive(True)
+                btn.set_icon_name("document-save-symbolic")
+                btn.set_tooltip_text("Download")
+                log.error(
+                    "Download failed: camera=%s rec_id=%d error=%s",
+                    rec.camera_name,
+                    rec.id,
+                    exc,
+                )
+                self._show_error_dialog(
+                    "Download Failed",
+                    f"Could not download recording from camera '{rec.camera_name}'.\n\n"
+                    f"{exc}\n\n"
+                    "Check the application log for details.",
+                )
+
+            run_async(
+                download_recording(self.app.api, rec.id, Path(path)),
+                callback=_on_success,
+                error_callback=_on_error,
+            )
 
         dialog.save(self.window, None, _on_save)
 
