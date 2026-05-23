@@ -100,6 +100,7 @@ class MpvGLArea(Gtk.GLArea):
         self._initialized = False
         self._render_pending = False
         self._tls_verify = tls_verify
+        self._low_latency = False
 
         self.set_auto_render(False)
         self.set_hexpand(True)
@@ -148,8 +149,9 @@ class MpvGLArea(Gtk.GLArea):
             self._ctx.update_cb = self._mpv_update_cb
             self._initialized = True
 
-            # If URL was set before realization, start playing
+            # If URL was set before realization, apply options and start playing
             if self._url:
+                self._apply_playback_options()
                 self._mpv.play(self._url)
 
         except Exception:
@@ -223,6 +225,27 @@ class MpvGLArea(Gtk.GLArea):
         elif loglevel == "warn":
             log.warning("mpv [%s]: %s", component, message.strip())
 
+    def _apply_playback_options(self) -> None:
+        """Apply buffering and timing options for the current playback profile."""
+        if not self._mpv:
+            return
+        if self._low_latency:
+            self._mpv["cache"] = "no"
+            self._mpv["demuxer-max-bytes"] = "512KiB"
+            self._mpv["demuxer-readahead-secs"] = 0
+            self._mpv["demuxer-lavf-analyzeduration"] = 0
+            self._mpv["demuxer-lavf-probesize"] = 32
+            self._mpv["correct-pts"] = False
+            self._mpv["untimed"] = True
+            self._mpv["container-fps-override"] = 25
+        else:
+            self._mpv["cache"] = "auto"
+            self._mpv["demuxer-max-bytes"] = "150MiB"
+            self._mpv["demuxer-readahead-secs"] = 1
+            self._mpv["demuxer-lavf-analyzeduration"] = 0
+            self._mpv["correct-pts"] = True
+            self._mpv["untimed"] = False
+
     def play(self, url: str, *, low_latency: bool = False) -> None:
         """Start playing a stream URL.
 
@@ -230,24 +253,10 @@ class MpvGLArea(Gtk.GLArea):
         stream plays in near real-time (used for WebSocket pipe bridges).
         """
         self._url = url
+        self._low_latency = low_latency
         if self._initialized and self._mpv:
             try:
-                if low_latency:
-                    self._mpv["cache"] = "no"
-                    self._mpv["demuxer-max-bytes"] = "512KiB"
-                    self._mpv["demuxer-readahead-secs"] = 0
-                    self._mpv["demuxer-lavf-analyzeduration"] = 0
-                    self._mpv["demuxer-lavf-probesize"] = 32
-                    self._mpv["correct-pts"] = False
-                    self._mpv["untimed"] = True
-                    self._mpv["container-fps-override"] = 25
-                else:
-                    self._mpv["cache"] = "auto"
-                    self._mpv["demuxer-max-bytes"] = "150MiB"
-                    self._mpv["demuxer-readahead-secs"] = 1
-                    self._mpv["demuxer-lavf-analyzeduration"] = 0
-                    self._mpv["correct-pts"] = True
-                    self._mpv["untimed"] = False
+                self._apply_playback_options()
                 self._mpv.play(url)
             except Exception:
                 log.exception("Failed to play %s", url)
