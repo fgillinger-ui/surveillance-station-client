@@ -27,6 +27,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -461,3 +462,59 @@ class TestWsBridgeClassify:
         msg = _classify_error(RuntimeError("something else"))
         assert "RuntimeError" in msg
         assert "something else" in msg
+
+
+class TestDownloadRecordingValidation:
+    """Server-response checks in recording.download_recording."""
+
+    @pytest.mark.asyncio
+    async def test_empty_response_raises(self, api: SurveillanceAPI, tmp_path: Path) -> None:
+        from surveillance.services.recording import download_recording
+
+        out = tmp_path / "out.mp4"
+        with (
+            patch.object(api, "download", new_callable=AsyncMock, return_value=b""),
+            pytest.raises(ValueError, match="empty response"),
+        ):
+            await download_recording(api, 1, out)
+        assert not out.exists()
+
+    @pytest.mark.asyncio
+    async def test_html_doctype_response_raises(self, api: SurveillanceAPI, tmp_path: Path) -> None:
+        from surveillance.services.recording import download_recording
+
+        body = b"<!DOCTYPE html><html><body>login</body></html>"
+        out = tmp_path / "out.mp4"
+        with (
+            patch.object(api, "download", new_callable=AsyncMock, return_value=body),
+            pytest.raises(ValueError, match="HTML"),
+        ):
+            await download_recording(api, 1, out)
+        assert not out.exists()
+
+    @pytest.mark.asyncio
+    async def test_html_tag_response_raises(self, api: SurveillanceAPI, tmp_path: Path) -> None:
+        from surveillance.services.recording import download_recording
+
+        body = b"\n  <html><body>login</body></html>"
+        out = tmp_path / "out.mp4"
+        with (
+            patch.object(api, "download", new_callable=AsyncMock, return_value=body),
+            pytest.raises(ValueError, match="HTML"),
+        ):
+            await download_recording(api, 1, out)
+        assert not out.exists()
+
+    @pytest.mark.asyncio
+    async def test_successful_download_writes_file(
+        self, api: SurveillanceAPI, tmp_path: Path
+    ) -> None:
+        from surveillance.services.recording import download_recording
+
+        # Minimal ftyp-box header so it looks like a real MP4
+        body = b"\x00\x00\x00\x18ftypisom" + b"\x00" * 8
+        out = tmp_path / "out.mp4"
+        with patch.object(api, "download", new_callable=AsyncMock, return_value=body):
+            result = await download_recording(api, 42, out)
+        assert result == out
+        assert out.read_bytes() == body
