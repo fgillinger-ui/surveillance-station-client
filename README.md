@@ -23,14 +23,14 @@
 ## Features
 
 - **Live View** &mdash; Real-time camera streams in 1&times;1, 2&times;2, 3&times;3, or 4&times;4 grid layouts. Hardware-accelerated rendering via mpv + OpenGL. Works on X11 and Wayland.
-- **Recordings** &mdash; Browse, filter by camera, play back with full transport controls (seek, pause, volume), and download to disk. Search by camera(s) and time range. Per-event thumbnails and smart detection labels (person, vehicle, animal, etc.) shown for each recording.
+- **Recordings** &mdash; Browse, filter by camera, play back with full transport controls (seek, pause, volume), and download to disk. Quick date presets (Today, Yesterday, Last 24 h, Last 7 days) for one-click filtering, plus advanced search by camera(s) and custom time range. Reset button clears all filters at once. Active filter summary always visible. Per-event thumbnails and smart detection labels (person, vehicle, animal, etc.) shown for each recording.
 - **PTZ Control** &mdash; Direction pad, zoom in/out, preset positions, and patrol routes. Appears automatically below the live view when a PTZ-capable camera is active.
 - **Snapshots** &mdash; Take live snapshots from any camera, browse saved snapshots, download or delete.
 - **Time Lapse** &mdash; Browse, play back, download, lock/unlock, and delete Smart Time Lapse recordings. Filter by time lapse task.
 - **Events & Alerts** &mdash; View motion detection and alarm events with smart detection labels. Notification bell with unread badge and alert popover, polled every 30 seconds.
 - **Home Mode** &mdash; Toggle Surveillance Station home mode directly from the header bar.
 - **License Management** &mdash; View, add, and delete camera licenses. Online and offline activation.
-- **Session Persistence** &mdash; Grid layout, active page, and camera assignments are restored on restart.
+- **Session Persistence** &mdash; Grid layout, active page, camera assignments, and recording search filters (including time presets) are restored on restart. Critical changes are flushed to disk immediately for crash resilience.
 - **Two-Factor Authentication** &mdash; MFA/OTP login support. When 2FA is enabled on your Synology account, the client prompts for a 6-digit authenticator code and optionally registers as a trusted device to skip OTP on future logins.
 - **Multi-Profile** &mdash; Save multiple NAS connection profiles and switch between them from the login screen.
 - **Secure Credentials** &mdash; Passwords stored in your system keyring (GNOME Keyring, KWallet, macOS Keychain).
@@ -151,6 +151,7 @@ last_page = "live"             # last active page
 # search_camera_ids = [1, 3]
 # search_from_time = "2026-02-01T00:00:00"
 # search_to_time = "2026-02-19T23:59:59"
+# search_time_preset = "today"  # "today", "yesterday", "last24h", "last7d", or ""
 
 [camera_overrides]
 # Direct RTSP URLs keyed by camera ID.
@@ -361,9 +362,11 @@ surveillance-station-client/
 └── tests/
     ├── conftest.py
     ├── test_api_client.py
-    ├── test_models.py
     ├── test_config.py
-    └── test_services.py
+    ├── test_liveview_persistence.py
+    ├── test_models.py
+    ├── test_services.py
+    └── test_ui_behavior.py
 ```
 </details>
 

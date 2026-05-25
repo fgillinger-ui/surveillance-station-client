@@ -1,4 +1,4 @@
-.TH SURVEILLANCE 1 "2026-05-23" "0.3.4" "User Commands"
+.TH SURVEILLANCE 1 "2026-05-25" "0.3.6" "User Commands"
 .SH NAME
 surveillance \- Synology Surveillance Station client
 .SH SYNOPSIS
@@ -18,8 +18,9 @@ Video is rendered via mpv with hardware acceleration.
 .TP
 .B Recording Playback
 Browse, play back, and download recordings filtered by camera and date.
-Search recordings by camera(s) and time range with preset filters (today, last 7 days, last 30 days).
-Per-event thumbnails are shown for each recording.
+Quick date presets (Today, Yesterday, Last 24 h, Last 7 days) for one-click filtering,
+plus advanced search by camera(s) and custom time range. Reset button clears all filters.
+Active filter summary always visible. Per-event thumbnails are shown for each recording.
 .TP
 .B PTZ Control
 Control pan-tilt-zoom cameras with direction pad, zoom, preset positions, and patrol routes. Controls appear automatically below the live view when a PTZ-capable camera is active.
@@ -60,9 +61,10 @@ config file.
 .PP
 The
 .B [session]
-section stores the grid layout, active page, and camera assignments.
-It is updated automatically so the application restores the previous viewing
-session on restart.
+section stores the grid layout, active page, camera assignments, and recording
+search filters (including time presets). It is updated automatically so the
+application restores the previous viewing session on restart. Critical changes
+are flushed to disk immediately for crash resilience.
 .PP
 The
 .B [camera_protocols]
