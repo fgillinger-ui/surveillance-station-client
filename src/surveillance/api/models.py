@@ -243,12 +243,14 @@ class ApiInfo:
 
     path: str
     max_version: int
+    min_version: int = 1
 
     @classmethod
     def from_api(cls, data: dict) -> ApiInfo:  # type: ignore[type-arg]
         return cls(
             path=data.get("path", ""),
             max_version=data.get("maxVersion", 1),
+            min_version=data.get("minVersion", 1),
         )
 
 
@@ -262,6 +264,7 @@ class License:
     expired_date: int  # unix timestamp, 0 = never expires
     is_expired: bool = False
     is_migrated: bool = False
+    owner_ds_id: int = 0
 
     @classmethod
     def from_api(cls, data: dict) -> License:  # type: ignore[type-arg]
@@ -272,6 +275,7 @@ class License:
             expired_date=data.get("expired_date", 0),
             is_expired=data.get("isExpired", False),
             is_migrated=data.get("isMigrated", False),
+            owner_ds_id=data.get("ownerDsId", 0),
         )
 
 
@@ -303,6 +307,8 @@ class TimeLapseTask:
     name: str
     camera_id: int
     camera_name: str
+    enabled: bool = True
+    status: int = 0
 
     @classmethod
     def from_api(cls, data: dict) -> TimeLapseTask:  # type: ignore[type-arg]
@@ -311,6 +317,8 @@ class TimeLapseTask:
             name=data.get("name", ""),
             camera_id=data.get("cameraId", 0),
             camera_name=data.get("cameraName", ""),
+            enabled=data.get("enabled", True),
+            status=data.get("status", 0),
         )
 
 
@@ -329,6 +337,7 @@ class TimeLapseRecording:
     is_locked: bool = False
     recording: bool = False
     path: str = ""
+    task_id: int = 0
 
     @classmethod
     def from_api(cls, data: dict) -> TimeLapseRecording:  # type: ignore[type-arg]
@@ -346,4 +355,5 @@ class TimeLapseRecording:
             is_locked=bool(status_flags & 4),
             recording=data.get("recording", False),
             path=data.get("path", ""),
+            task_id=data.get("taskId", 0),
         )
